@@ -55,6 +55,7 @@ class Service(Base):
     __tablename__ = "services"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    service_key: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     service_name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     base_url: Mapped[str] = mapped_column(String(500), nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True)

@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
+
 from auth import AdminUser, AnyUser, CurrentUser
 from database import get_db
 from models import ApiKey, User
@@ -53,6 +55,6 @@ async def list_api_keys(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        ApiKey.__table__.select().order_by(ApiKey.created_at.desc())
+        select(ApiKey).order_by(ApiKey.created_at.desc())
     )
     return result.scalars().all()

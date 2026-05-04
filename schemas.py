@@ -74,12 +74,14 @@ class ApiKeyOut(BaseModel):
 
 
 class ServiceCreate(BaseModel):
+    service_key: str
     service_name: str
     base_url: str
 
 
 class ServiceOut(BaseModel):
     id: int
+    service_key: str
     service_name: str
     base_url: str
     is_active: bool

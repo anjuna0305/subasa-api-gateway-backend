@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import AdminUser, AnyUser, CurrentUser
@@ -77,19 +77,19 @@ async def get_current_usage(
     current_user: AnyUser,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        text("""
-            SELECT
-                api_key_id,
-                service_id,
-                SUM(tokens_used) AS total_tokens_used,
-                COUNT(*) AS request_count
-            FROM usage_logs
-            WHERE api_key_id = :api_key_id AND service_id = :service_id
-            GROUP BY api_key_id, service_id
-        """),
-        {"api_key_id": api_key_id, "service_id": service_id},
+    stmt = (
+        select(
+            UsageLog.api_key_id,
+            UsageLog.service_id,
+            func.sum(UsageLog.tokens_used).label("total_tokens_used"),
+            func.count().label("request_count"),
+        )
+        .where(
+            UsageLog.api_key_id == api_key_id, UsageLog.service_id == service_id
+        )
+        .group_by(UsageLog.api_key_id, UsageLog.service_id)
     )
+    result = await db.execute(stmt)
     row = result.mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="No usage data found")

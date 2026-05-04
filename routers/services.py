@@ -3,6 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
+
 from auth import AdminUser, AnyUser, CurrentUser
 from database import get_db
 from models import Service
@@ -18,6 +20,7 @@ async def create_service(
     db: AsyncSession = Depends(get_db),
 ):
     service = Service(
+        service_key=payload.service_key,
         service_name=payload.service_name,
         base_url=payload.base_url,
     )
@@ -45,6 +48,6 @@ async def list_services(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        Service.__table__.select().order_by(Service.service_name.asc())
+        select(Service).order_by(Service.service_name.asc())
     )
     return result.scalars().all()

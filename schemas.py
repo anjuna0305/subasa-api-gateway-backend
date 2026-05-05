@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, field_validator
 
-from models import UserRole
+from models import ResponseType, TaskStatus, UserRole
 
 
 class UserCreate(BaseModel):
@@ -54,6 +54,7 @@ class UserLogin(BaseModel):
 class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    role: UserRole
 
 
 class ApiKeyCreate(BaseModel):
@@ -77,6 +78,7 @@ class ServiceCreate(BaseModel):
     service_key: str
     service_name: str
     base_url: str
+    response_type: ResponseType = ResponseType.short
 
 
 class ServiceOut(BaseModel):
@@ -84,6 +86,7 @@ class ServiceOut(BaseModel):
     service_key: str
     service_name: str
     base_url: str
+    response_type: ResponseType
     is_active: bool
 
     model_config = {"from_attributes": True}
@@ -129,5 +132,34 @@ class CurrentUsageOut(BaseModel):
     service_id: int
     total_tokens_used: int
     request_count: int
+
+    model_config = {"from_attributes": True}
+
+
+class TaskSubmitOut(BaseModel):
+    task_id: int
+    status: TaskStatus
+
+    model_config = {"from_attributes": True}
+
+
+class TaskStatusOut(BaseModel):
+    task_id: int
+    status: TaskStatus
+    created_at: datetime
+    completed_at: datetime | None = None
+    error_message: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class TaskResultOut(BaseModel):
+    task_id: int
+    status: TaskStatus
+    response_status_code: int | None = None
+    response_content_type: str | None = None
+    tokens_used: int
+    completed_at: datetime | None = None
+    error_message: str | None = None
 
     model_config = {"from_attributes": True}

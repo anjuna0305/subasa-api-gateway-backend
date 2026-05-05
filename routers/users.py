@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
 import jwt
+from fastapi import APIRouter, Depends, HTTPException
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,13 +12,25 @@ from database import get_db
 from models import User, UserRole
 from schemas import TokenOut, UserCreate, UserLogin, UserOut
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.post("/register", response_model=UserOut, status_code=201)
 async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)):
+    if await db.scalar(select(User).where(User.email == payload.email)):
+        raise HTTPException(
+            status_code=409,
+            detail=[{"field": "email", "message": "User email already exists."}],
+        )
+
+    if await db.scalar(select(User).where(User.name == payload.name)):
+        raise HTTPException(
+            status_code=409,
+            detail=[{"field": "name", "message": "User name already exists."}],
+        )
+
     hashed = pwd_context.hash(payload.password)
     user = User(
         name=payload.name,
@@ -32,34 +44,21 @@ async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)):
     return user
 
 
-@router.post("", response_model=UserOut, status_code=201)
-async def create_user(
-    payload: UserCreate,
-    current_user: AdminUser,
-    db: AsyncSession = Depends(get_db),
-):
-    hashed = pwd_context.hash(payload.password)
-    user = User(
-        name=payload.name,
-        email=payload.email,
-        hashed_password=hashed,
-        role=payload.role,
-    )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    return user
-
-
 @router.post("/login", response_model=TokenOut)
 async def login(payload: UserLogin, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == payload.email))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=401,
+            detail=[{"field": "credentials", "message": "Invalid email or password."}],
+        )
 
     if not pwd_context.verify(payload.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=401,
+            detail=[{"field": "password", "message": "Incorrect password."}],
+        )
 
     expires = datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRE_MINUTES)
     token = jwt.encode(
@@ -67,14 +66,17 @@ async def login(payload: UserLogin, db: AsyncSession = Depends(get_db)):
         JWT_SECRET,
         algorithm="HS256",
     )
-    return TokenOut(access_token=token)
+    return TokenOut(access_token=token, role=user.role)
 
 
 @router.get("/me", response_model=UserOut)
 async def get_me(current_user: AnyUser, db: AsyncSession = Depends(get_db)):
     user = await db.get(User, current_user.id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "user", "message": "User not found."}],
+        )
     return user
 
 
@@ -86,5 +88,8 @@ async def get_user(
 ):
     user = await db.get(User, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "user", "message": "User not found."}],
+        )
     return user

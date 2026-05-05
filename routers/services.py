@@ -23,6 +23,7 @@ async def create_service(
         service_key=payload.service_key,
         service_name=payload.service_name,
         base_url=payload.base_url,
+        response_type=payload.response_type,
     )
     db.add(service)
     await db.commit()
@@ -38,7 +39,10 @@ async def get_service(
 ):
     service = await db.get(Service, service_id)
     if not service:
-        raise HTTPException(status_code=404, detail="Service not found")
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "service", "message": "Service not found."}],
+        )
     return service
 
 

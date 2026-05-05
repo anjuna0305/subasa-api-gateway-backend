@@ -26,19 +26,19 @@ async def validate_api_key(
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key",
+            detail=[{"field": "api_key", "message": "Invalid API key provided."}],
         )
 
     if not api_key.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="API key is deactivated",
+            detail=[{"field": "api_key", "message": "API key has been deactivated."}],
         )
 
     if api_key.expires_at and api_key.expires_at < datetime.now(timezone.utc):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="API key has expired",
+            detail=[{"field": "api_key", "message": "API key has expired."}],
         )
 
     service = await db.execute(
@@ -49,13 +49,13 @@ async def validate_api_key(
     if not service:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Service '{service_key}' not found",
+            detail=[{"field": "service", "message": f"Service '{service_key}' not found."}],
         )
 
     if not service.is_active:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Service '{service_key}' is currently unavailable",
+            detail=[{"field": "service", "message": f"Service '{service_key}' is currently unavailable."}],
         )
 
     service_usage = await db.execute(
@@ -69,13 +69,13 @@ async def validate_api_key(
     if not service_usage:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="This API key does not have access to the requested service",
+            detail=[{"field": "api_key", "message": "API key does not have access to the requested service."}],
         )
 
     if service_usage.expires_at and service_usage.expires_at < datetime.now(timezone.utc):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Service usage allocation has expired",
+            detail=[{"field": "service_usage", "message": "Service usage allocation has expired."}],
         )
 
     usage_result = await db.execute(
@@ -89,7 +89,7 @@ async def validate_api_key(
     if total_used >= service_usage.usage_limit:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Usage limit exceeded for this service",
+            detail=[{"field": "usage_limit", "message": "Usage limit exceeded for this service."}],
         )
 
     return ApiKeyValidationResult(api_key=api_key, service=service)

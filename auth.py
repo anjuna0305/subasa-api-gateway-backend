@@ -23,7 +23,7 @@ async def get_current_user(
 ) -> CurrentUser:
     exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid or expired token",
+        detail=[{"field": "token", "message": "Invalid or expired authentication token."}],
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
@@ -46,7 +46,7 @@ def require_role(*allowed_roles: UserRole):
         if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions",
+                detail=[{"field": "role", "message": "Insufficient permissions for this action."}],
             )
         return current_user
 

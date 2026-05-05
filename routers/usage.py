@@ -26,11 +26,17 @@ async def create_service_usage(
 ):
     api_key = await db.get(ApiKey, payload.api_key_id)
     if not api_key:
-        raise HTTPException(status_code=404, detail="API key not found")
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "api_key", "message": "API key not found."}],
+        )
 
     service = await db.get(Service, payload.service_id)
     if not service:
-        raise HTTPException(status_code=404, detail="Service not found")
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "service", "message": "Service not found."}],
+        )
 
     service_usage = ServiceUsage(
         api_key_id=payload.api_key_id,
@@ -52,11 +58,17 @@ async def create_usage_log(
 ):
     api_key = await db.get(ApiKey, payload.api_key_id)
     if not api_key:
-        raise HTTPException(status_code=404, detail="API key not found")
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "api_key", "message": "API key not found."}],
+        )
 
     service = await db.get(Service, payload.service_id)
     if not service:
-        raise HTTPException(status_code=404, detail="Service not found")
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "service", "message": "Service not found."}],
+        )
 
     log = UsageLog(
         api_key_id=payload.api_key_id,
@@ -92,5 +104,8 @@ async def get_current_usage(
     result = await db.execute(stmt)
     row = result.mappings().first()
     if not row:
-        raise HTTPException(status_code=404, detail="No usage data found")
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "usage", "message": "No usage data found for the given API key and service."}],
+        )
     return CurrentUsageOut(**row)

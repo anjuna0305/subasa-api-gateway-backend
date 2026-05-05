@@ -23,7 +23,10 @@ async def create_api_key(
 ):
     user = await db.get(User, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "user", "message": "User not found."}],
+        )
 
     api_key = ApiKey(
         user_id=user_id,
@@ -45,7 +48,10 @@ async def get_api_key(
 ):
     api_key = await db.get(ApiKey, api_key_id)
     if not api_key:
-        raise HTTPException(status_code=404, detail="API key not found")
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "api_key", "message": "API key not found."}],
+        )
     return api_key
 
 

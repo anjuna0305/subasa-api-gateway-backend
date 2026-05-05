@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import Enum, ForeignKey, String
+from sqlalchemy import Enum, ForeignKey, LargeBinary, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -12,6 +12,18 @@ class Base(DeclarativeBase):
 class UserRole(str, enum.Enum):
     admin = "admin"
     general_user = "general_user"
+
+
+class ResponseType(str, enum.Enum):
+    short = "short"
+    long = "long"
+
+
+class TaskStatus(str, enum.Enum):
+    pending = "pending"
+    processing = "processing"
+    completed = "completed"
+    failed = "failed"
 
 
 def _utcnow() -> datetime:
@@ -58,6 +70,9 @@ class Service(Base):
     service_key: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     service_name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     base_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    response_type: Mapped[ResponseType] = mapped_column(
+        Enum(ResponseType), nullable=False, default=ResponseType.short
+    )
     is_active: Mapped[bool] = mapped_column(default=True)
 
     service_usages: Mapped[list["ServiceUsage"]] = relationship(
@@ -91,3 +106,29 @@ class UsageLog(Base):
 
     api_key: Mapped["ApiKey"] = relationship(back_populates="usage_logs")
     service: Mapped["Service"] = relationship(back_populates="usage_logs")
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    api_key_id: Mapped[int] = mapped_column(ForeignKey("api_keys.id"), nullable=False)
+    service_id: Mapped[int] = mapped_column(ForeignKey("services.id"), nullable=False)
+    status: Mapped[TaskStatus] = mapped_column(
+        Enum(TaskStatus), nullable=False, default=TaskStatus.pending
+    )
+    request_method: Mapped[str] = mapped_column(String(10), nullable=False)
+    request_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    request_query: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    request_headers: Mapped[str | None] = mapped_column(String(5000), nullable=True)
+    request_body: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    response_status_code: Mapped[int | None] = mapped_column(nullable=True)
+    response_body: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    response_content_type: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    tokens_used: Mapped[int] = mapped_column(nullable=False, default=0)
+    error_message: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=_utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+    api_key: Mapped["ApiKey"] = relationship()
+    service: Mapped["Service"] = relationship()

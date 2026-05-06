@@ -124,7 +124,9 @@ class Task(Base):
     request_body: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     response_status_code: Mapped[int | None] = mapped_column(nullable=True)
     response_body: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
-    response_content_type: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    response_content_type: Mapped[str | None] = mapped_column(
+        String(200), nullable=True
+    )
     tokens_used: Mapped[int] = mapped_column(nullable=False, default=0)
     error_message: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=_utcnow)
@@ -132,3 +134,16 @@ class Task(Base):
 
     api_key: Mapped["ApiKey"] = relationship()
     service: Mapped["Service"] = relationship()
+
+
+class CustomChatbot(Base):
+    __tablename__ = "custom_chatbots"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    chatbot_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    hero_image: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    url_path: Mapped[str] = mapped_column(String(200), nullable=False)
+    retrieval_key: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    is_publish: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(default=_utcnow)

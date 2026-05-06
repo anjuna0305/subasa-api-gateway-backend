@@ -10,6 +10,7 @@ from database import engine
 from models import Base
 from routers._http import close_http_client
 from routers.api_keys import router as api_keys_router
+from routers.custom_chatbots import router as custom_chatbots_router
 from routers.gateway import router as gateway_router
 from routers.services import router as services_router
 from routers.tasks import router as tasks_router
@@ -64,3 +65,4 @@ app.include_router(services_router)
 app.include_router(usage_router)
 app.include_router(gateway_router)
 app.include_router(tasks_router)
+app.include_router(custom_chatbots_router)

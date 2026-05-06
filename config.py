@@ -6,3 +6,9 @@ DATABASE_URL = os.environ.get(
 )
 JWT_SECRET = os.environ.get("JWT_SECRET", "change-me-in-production")
 JWT_EXPIRE_MINUTES = int(os.environ.get("JWT_EXPIRE_MINUTES", "1440"))
+IMAGE_UPLOAD_DIR = os.environ.get(
+    "UPLOAD_DIR", os.path.join(os.path.dirname(__file__), "uploads", "chatbot_images")
+)
+FILE_UPLOAD_DIR = os.environ.get(
+    "UPLOAD_DIR", os.path.join(os.path.dirname(__file__), "uploads", "chatbot_files")
+)

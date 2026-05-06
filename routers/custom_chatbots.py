@@ -1,17 +1,56 @@
-from typing import Annotated
+import os
+import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic_core.core_schema import CustomErrorSchema
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.operators import or_
 
-from auth import AdminUser, AnyUser, CurrentUser
+from config import FILE_UPLOAD_DIR, IMAGE_UPLOAD_DIR
 from database import get_db
-from models import ApiKey, CustomChatbot, User
-from schemas import ApiKeyCreate, ApiKeyOut, CustomChatbotCreate, CustomChatbotOut
+from models import ApiKey, CustomChatbot
+from schemas import ApiKeyOut, CustomChatbotCreate, CustomChatbotOut
+
+ALLOWED_IMAGE_EXTENSIONS = {".jpeg", ".jpg", ".png"}
+ALLOWED_FILE_EXTENSIONS = {".txt", ".pdf"}
+MIME_TYPES = {
+    ".jpeg": "image/jpeg",
+    ".jpg": "image/jpeg",
+    ".png": "image/png",
+}
 
 router = APIRouter(prefix="/custom-chatbots", tags=["custom-chatbots"])
+
+
+def _validate_image_extension(filename: str) -> str:
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=[
+                {
+                    "field": "file",
+                    "message": "Only jpeg and png images are allowed",
+                }
+            ],
+        )
+    return ext
+
+
+def _validate_file_extension(filename: str) -> str:
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ALLOWED_FILE_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=[
+                {
+                    "field": "file",
+                    "message": "Only text and pfg files are allowed",
+                }
+            ],
+        )
+    return ext
 
 
 @router.post("", response_model=CustomChatbotOut, status_code=201)
@@ -60,16 +99,16 @@ async def create_custom_chatbot(
 
 
 # todo change this
-@router.get("/{api_key_id}", response_model=ApiKeyOut)
-async def get_api_key(
-    api_key_id: int,
+@router.get("/{chatbot_id}", response_model=CustomChatbotOut)
+async def get_custom_chatbot(
+    chatbot_id: int,
     db: AsyncSession = Depends(get_db),
 ):
-    api_key = await db.get(ApiKey, api_key_id)
+    api_key = await db.get(CustomChatbot, chatbot_id)
     if not api_key:
         raise HTTPException(
             status_code=404,
-            detail=[{"field": "api_key", "message": "API key not found."}],
+            detail=[{"field": "chatbot_id", "message": "Chatbot id not found."}],
         )
     return api_key
 
@@ -99,3 +138,122 @@ async def list_custom_chatbot(
         select(CustomChatbot).order_by(CustomChatbot.created_at.desc())
     )
     return result.scalars().all()
+
+
+@router.patch("/publish/{chatbot_id}", response_model=CustomChatbotOut)
+async def publish_chatbot(chatbot_id: int, db: AsyncSession = Depends(get_db)):
+    chatbot = await db.get(CustomChatbot, chatbot_id)
+    if not chatbot:
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "chatbot_id", "message": "Chat bot not found."}],
+        )
+
+    chatbot.is_publish = True
+    await db.commit()
+    await db.refresh(chatbot)
+    return chatbot
+
+
+@router.patch("/unpublish/{chatbot_id}", response_model=CustomChatbotOut)
+async def unpublish_chatbot(chatbot_id: int, db: AsyncSession = Depends(get_db)):
+    chatbot = await db.get(CustomChatbot, chatbot_id)
+    if not chatbot:
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "chatbot_id", "message": "Chat bot not found."}],
+        )
+
+    chatbot.is_publish = False
+    await db.commit()
+    await db.refresh(chatbot)
+    return chatbot
+
+
+@router.post("/{chatbot_id}/upload-image", response_model=CustomChatbotOut)
+async def upload_chatbot_image(
+    chatbot_id: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    chatbot = await db.get(CustomChatbot, chatbot_id)
+    if not chatbot:
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "chatbot_id", "message": "Custom chatbot not found."}],
+        )
+
+    ext = _validate_image_extension(file.filename or "")
+
+    image_name = f"{uuid.uuid4().hex}{ext}"
+
+    os.makedirs(IMAGE_UPLOAD_DIR, exist_ok=True)
+    file_path = os.path.join(IMAGE_UPLOAD_DIR, image_name)
+
+    if chatbot.hero_image:
+        old_path = os.path.join(IMAGE_UPLOAD_DIR, chatbot.hero_image)
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    chatbot.hero_image = image_name
+    await db.commit()
+    await db.refresh(chatbot)
+    return chatbot
+
+
+@router.get("/images/{image_name}")
+async def get_chatbot_image(image_name: str):
+    ext = os.path.splitext(image_name)[1].lower()
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=[{"field": "image_name", "message": "Invalid image format."}],
+        )
+
+    file_path = os.path.join(IMAGE_UPLOAD_DIR, image_name)
+    if not os.path.exists(file_path):
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "image_name", "message": "Image not found."}],
+        )
+
+    return FileResponse(file_path, media_type=MIME_TYPES.get(ext, "image/jpeg"))
+
+
+@router.post("/{chatbot_id}/upload-file", response_model=CustomChatbotOut)
+async def upload_chatbot_file(
+    chatbot_id: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    chatbot = await db.get(CustomChatbot, chatbot_id)
+    if not chatbot:
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "chatbot_id", "message": "Custom chatbot not found."}],
+        )
+
+    ext = _validate_file_extension(file.filename or "")
+
+    file_name = f"{uuid.uuid4().hex}{ext}"
+
+    os.makedirs(FILE_UPLOAD_DIR, exist_ok=True)
+    file_path = os.path.join(FILE_UPLOAD_DIR, file_name)
+
+    if chatbot.hero_image:
+        old_path = os.path.join(FILE_UPLOAD_DIR, chatbot.file_path)
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    chatbot.file_path = file_name
+    await db.commit()
+    await db.refresh(chatbot)
+    return chatbot

@@ -17,7 +17,7 @@ def _build_forward_headers(request: Request) -> str:
     headers = {
         k: v
         for k, v in request.headers.items()
-        if k.lower() not in ("host", "x-api-key", "content-length")
+        # if k.lower() not in ("host", "x-api-key", "content-length")
     }
     return json.dumps(headers)
 

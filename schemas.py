@@ -207,6 +207,14 @@ class CustomChatbotCreate(BaseModel):
         return v
 
 
+class CustomChatbotMessageRequest(BaseModel):
+    message: str
+
+
+class CustomChatbotMessageResponse(BaseModel):
+    response: str
+
+
 class CustomChatbotOut(BaseModel):
     id: int
     chatbot_name: str

@@ -7,10 +7,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.operators import or_
 
-from config import FILE_UPLOAD_DIR, IMAGE_UPLOAD_DIR
+from config import CUSTOM_CHATBOT_SERVICE_URL, FILE_UPLOAD_DIR, IMAGE_UPLOAD_DIR
 from database import get_db
 from models import ApiKey, CustomChatbot
-from schemas import ApiKeyOut, CustomChatbotCreate, CustomChatbotOut
+from schemas import (
+    ApiKeyOut,
+    CustomChatbotCreate,
+    CustomChatbotMessageRequest,
+    CustomChatbotMessageResponse,
+    CustomChatbotOut,
+)
 
 ALLOWED_IMAGE_EXTENSIONS = {".jpeg", ".jpg", ".png"}
 ALLOWED_FILE_EXTENSIONS = {".txt", ".pdf"}
@@ -21,6 +27,46 @@ MIME_TYPES = {
 }
 
 router = APIRouter(prefix="/custom-chatbots", tags=["custom-chatbots"])
+
+
+@router.post("/api/{url_path}", response_model=CustomChatbotMessageResponse)
+async def chat_with_custom_chatbot(
+    url_path: str,
+    payload: CustomChatbotMessageRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CustomChatbot).where(CustomChatbot.url_path == url_path)
+    )
+    custom_chatbot = result.scalar_one_or_none()
+    if not custom_chatbot:
+        raise HTTPException(
+            status_code=404,
+            detail=[{"field": "url_path", "message": "Chatbot not found."}],
+        )
+
+    from routers._http import get_http_client
+
+    client = get_http_client()
+
+    # forward_url = f"{CUSTOM_CHATBOT_SERVICE_URL.rstrip('/')}/api/{url_path}"
+    forward_url = CUSTOM_CHATBOT_SERVICE_URL
+    forward_payload = {
+        "message": payload.message,
+        "retrieval_key": custom_chatbot.retrieval_key,
+        "file_path": custom_chatbot.file_path,
+    }
+
+    upstream_resp = await client.post(
+        forward_url,
+        json=forward_payload,
+    )
+    upstream_resp.raise_for_status()
+
+    data = upstream_resp.json()
+    return CustomChatbotMessageResponse(
+        response=data.get("response", data.get("message", ""))
+    )
 
 
 def _validate_image_extension(filename: str) -> str:

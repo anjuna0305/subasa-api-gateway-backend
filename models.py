@@ -10,7 +10,7 @@ class Base(DeclarativeBase):
 
 
 class UserRole(str, enum.Enum):
-    admin = "admin"
+    admin = "admin_user"
     general_user = "general_user"
 
 

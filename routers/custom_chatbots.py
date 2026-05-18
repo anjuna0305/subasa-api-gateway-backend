@@ -186,7 +186,7 @@ async def list_custom_chatbot(
     return result.scalars().all()
 
 
-@router.patch("/publish/{chatbot_id}", response_model=CustomChatbotOut)
+@router.post("/publish/{chatbot_id}", response_model=CustomChatbotOut)
 async def publish_chatbot(chatbot_id: int, db: AsyncSession = Depends(get_db)):
     chatbot = await db.get(CustomChatbot, chatbot_id)
     if not chatbot:
@@ -201,7 +201,7 @@ async def publish_chatbot(chatbot_id: int, db: AsyncSession = Depends(get_db)):
     return chatbot
 
 
-@router.patch("/unpublish/{chatbot_id}", response_model=CustomChatbotOut)
+@router.post("/unpublish/{chatbot_id}", response_model=CustomChatbotOut)
 async def unpublish_chatbot(chatbot_id: int, db: AsyncSession = Depends(get_db)):
     chatbot = await db.get(CustomChatbot, chatbot_id)
     if not chatbot:
